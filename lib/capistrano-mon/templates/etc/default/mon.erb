@@ -1,0 +1,31 @@
+# Defaults for mon initscript
+# Created by Dario Minnucci <midget@debian.org>
+
+# Master system-wide mon switch.
+# The initscript will not run if ENABLED is set 
+# to values other than: "yes", "true" or "1".
+ENABLED="yes"
+
+# Configuration file
+CONFIGFILE=<%= File.join(mon_path, "mon.cf").dump %>
+# Auth file
+#AUTHFILE=<%= File.join(mon_path, "auth.cf").dump %>
+
+# Base configuration directory
+CFBASEDIR=<%= mon_path.dump %>
+# Alerts directory
+ALERTSDIR=<%= [ File.join(mon_plugins_path, "alert.d"), "/usr/lib/mon/alert.d" ].uniq.join(":").dump %>
+# Monitors directory
+MONITORSDIR=<%= [ File.join(mon_plugins_path, "mon.d"), "/usr/lib/mon/mon.d" ].uniq.join(":").dump %>
+# State directory
+STATEDIR=<%= mon_lib_path.dump %>
+# Logging directory
+LOGDIR=<%= mon_log_path.dump %>
+
+# Deamon options
+DAEMON_OPTS="-B ${CFBASEDIR} -a ${ALERTSDIR} -s ${MONITORSDIR} -D ${STATEDIR} -L ${LOGDIR} -f -c ${CONFIGFILE}"
+
+# Bootstrap script
+<%= fetch(:mon_bootstrap_script, '').strip %>
+
+# vim:set ft=eruby :

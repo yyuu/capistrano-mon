@@ -1,0 +1,34 @@
+#
+# Example mon.cf file
+#
+# Author: Dario Minnucci <midget@debian.org>
+# Date: Mon, 07 Sep 2009 13:57:38 +0200 
+#
+
+#
+# Global options
+#
+alertdir = <%= [ File.join(mon_plugins_path, "alert.d"), "/usr/lib/mon/alert.d" ].uniq.join(":") %>
+mondir = <%= [ File.join(mon_plugins_path, "mon.d"), "/usr/lib/mon/mon.d" ].uniq.join(":") %>
+logdir = <%= mon_log_path %>
+historicfile = <%= fetch(:mon_historicfile, File.join(mon_log_path, "history.log")) %>
+maxprocs = <%= fetch(:mon_maxprocs, 20) %>
+histlength = <%= fetch(:mon_histlength, 100) %>
+randstart = <%= fetch(:mon_randstart, "60s") %>
+dtlogging = <%= fetch(:mon_dtlogging, "yes") %>
+dtlogfile = <%= fetch(:mon_dtlogfile, "dtlog") %>
+
+#
+# Define groups of hosts to monitor
+#
+hostgroup localhost <%= fetch(:mon_hostgroup, %w(localhost)).join(' ') %>
+
+#
+# Define watches
+#
+watch localhost<% fetch(:mon_services, {}).each { |service_name, service_defs| %>
+  service <%= service_name %><% service_defs.each { |monitor_name, monitor_def| %><% if Array === monitor_def %><% monitor_def.each { |d| %>
+    <%= monitor_name %> <%= d %><% } %><% else %>
+    <%= monitor_name %> <%= monitor_def %><% end %><% } %><% } %>
+
+# vim:set ft=eruby :
