@@ -10,7 +10,7 @@ Gem::Specification.new do |gem|
   gem.email         = ["yamashita@geishatokyo.com"]
   gem.description   = %q{a capistrano recipe to setup mon.}
   gem.summary       = %q{a capistrano recipe to setup mon.}
-  gem.homepage      = ""
+  gem.homepage      = "https://github.com/yyuu/capistrano-mon"
 
   gem.files         = `git ls-files`.split($/)
   gem.executables   = gem.files.grep(%r{^bin/}).map{ |f| File.basename(f) }
