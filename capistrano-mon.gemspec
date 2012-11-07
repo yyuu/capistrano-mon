@@ -8,8 +8,8 @@ Gem::Specification.new do |gem|
   gem.version       = Capistrano::Mon::VERSION
   gem.authors       = ["Yamashita Yuu"]
   gem.email         = ["yamashita@geishatokyo.com"]
-  gem.description   = %q{a capistrano recipe to setup mon.}
-  gem.summary       = %q{a capistrano recipe to setup mon.}
+  gem.description   = %q{a capistrano recipe to setup Mon.}
+  gem.summary       = %q{a capistrano recipe to setup Mon.}
   gem.homepage      = "https://github.com/yyuu/capistrano-mon"
 
   gem.files         = `git ls-files`.split($/)

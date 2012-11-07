@@ -18,14 +18,32 @@ Or install it yourself as:
 
 ## Usage
 
- * `:mon_path` - "/etc/mon"
- * `:mon_lib_path` - "/var/lib/mon"
- * `:mon_log_path` - "/var/log/mon"
- * `:mon_dependencies` - `%w(mon)`
- * `:mon_plugins_path` - "/usr/local/lib/mon"
- * `:mon_plugins` - `{}`
- * `:mon_configure_files` - `%w(/etc/default/mon mon.cf))`
- * `:mon_service_name` - `"mon"`
+This recipe will setup Mon during `deploy:setup` task.
+
+To enable this recipe, add following in your `config/deploy.rb`.
+
+    # in "config/deploy.rb"
+    require "capistrano-mon"
+    set(:mon_services) {{
+      "ping" => {
+        :description => "Responses to ping",
+        :interval => "5m",
+        :monitor => "fping.monitor",
+        :period => "wd {Mon-Fri} hr {7am-10pm}",
+        :alert => "mail.alert root@localhost",
+        :alertevery => "1h",
+      }
+    }
+
+Following options are available to configure your Mon.
+
+ * `:mon_path` - The base path of Mon configurations. Use `/etc/mon` by default.
+ * `:mon_services` - The key-value map of `service` definitions of Mon.
+ * `:mon_dependencies` - The packages of Mon.
+ * `:mon_plugins_path` - The installation path for custom plugins.
+ * `:mon_plugins` - The information of custom plugins.
+ * `:mon_configure_files` - The configuration files of Mon.
+ * `:mon_service_name` - The name of Mon service. Use `mon` by default.
 
 ## Contributing
 

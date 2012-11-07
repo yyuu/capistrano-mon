@@ -119,6 +119,20 @@ module Capistrano
 
           _cset(:mon_plugins_path, "/usr/local/lib/mon")
           _cset(:mon_plugins, [])
+          #
+          # Example:
+          #
+          # ## simple definition
+          # set(:mon_plugins, %w(
+          #   https://example.com/foo.alert
+          #   https://example.com/bar.monitor
+          # ))
+          #
+          # ## use custom plugin name
+          # set(:mon_plugins) {{
+          #   "https://gist.github.com/raw/2321002/pyhttp.monitor.py" => "pyhttp.monitor",
+          # }}
+          #
           task(:update_plugins, :roles => :app, :except => { :no_release => true }) {
             srcs = mon_plugins.map { |uri, name| uri }
             tmps = mon_plugins.map { |uri, name| tempfile('capistrano-mon') }
