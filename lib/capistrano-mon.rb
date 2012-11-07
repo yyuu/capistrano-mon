@@ -11,6 +11,40 @@ module Capistrano
           _cset(:mon_path, "/etc/mon")
           _cset(:mon_lib_path, "/var/lib/mon")
           _cset(:mon_log_path, "/var/log/mon")
+          _cset(:mon_services, {})
+          #
+          # Example:
+          #
+          # set(:mon_services) {{
+          #   "ping" => {
+          #     :description => "Responses to ping",
+          #     :interval => "5m",
+          #     :monitor => "fping.monitor",
+          #     :period => "wd {Mon-Fri} hr {7am-10pm}",
+          #     :alert => "mail.alert root@localhost",
+          #     :alertevery => "1h",
+          #   },
+          #   "http" => {
+          #     :description => "HTTP service",
+          #     :interval => "10m",
+          #     :monitor => "http.monitor",
+          #     :period => "",
+          #     :numalerts => 10,
+          #     :alert => "mail.alert root@localhost",
+          #     :upalert => "mail.alert root@localhost",
+          #   },
+          #   "smtp" => {
+          #     :description => "SMTP service",
+          #     :interval => "10m",
+          #     :monitor => "smtp.monitor -t 60",
+          #     :period => "",
+          #     :numalerts => 10,
+          #     :alert => "mail.alert root@localhost",
+          #     :upalert => "mail.alert root@localhost",
+          #   },
+          # }}
+          #
+
           desc("Setup mon.")
           task(:setup, :roles => :app, :except => { :no_release => true }) {
             transaction {
