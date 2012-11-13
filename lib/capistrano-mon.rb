@@ -11,6 +11,8 @@ module Capistrano
           _cset(:mon_path, "/etc/mon")
           _cset(:mon_lib_path, "/var/lib/mon")
           _cset(:mon_log_path, "/var/log/mon")
+          _cset(:mon_hostgroup_name) { application }
+          _cset(:mon_hostgroup, %w(localhost))
           _cset(:mon_services, {})
           #
           # Example:

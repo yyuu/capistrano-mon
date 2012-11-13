@@ -21,12 +21,12 @@ dtlogfile = <%= fetch(:mon_dtlogfile, "dtlog") %>
 #
 # Define groups of hosts to monitor
 #
-hostgroup localhost <%= fetch(:mon_hostgroup, %w(localhost)).join(' ') %>
+hostgroup <%= mon_hostgroup_name %> <%= mon_hostgroup.join(' ') %>
 
 #
 # Define watches
 #
-watch localhost<% fetch(:mon_services, {}).each { |service_name, service_defs| %>
+watch <%= mon_hostgroup_name %><% fetch(:mon_services, {}).each { |service_name, service_defs| %>
   service <%= service_name %><% service_defs.each { |monitor_name, monitor_def| %><% if Array === monitor_def %><% monitor_def.each { |d| %>
     <%= monitor_name %> <%= d %><% } %><% else %>
     <%= monitor_name %> <%= monitor_def %><% end %><% } %><% } %>
