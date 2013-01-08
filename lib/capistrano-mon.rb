@@ -1,6 +1,7 @@
 require "capistrano-mon/version"
 require "erb"
 require "tempfile"
+require "tmpdir"
 require "uri"
 
 module Capistrano
@@ -135,32 +136,90 @@ module Capistrano
           #   "https://gist.github.com/raw/2321002/pyhttp.monitor.py" => "pyhttp.monitor",
           # }}
           #
-          task(:update_plugins, :roles => :app, :except => { :no_release => true }) {
-            srcs = mon_plugins.map { |uri, name| uri }
-            tmps = mon_plugins.map { |uri, name| tempfile('capistrano-mon') }
-            dsts = mon_plugins.map { |uri, name|
-              basename = File.basename(name || URI.parse(uri).path)
-              case basename
-              when /\.alert$/
-                File.join(mon_plugins_path, 'alert.d', basename)
-              when /\.monitor$/
-                File.join(mon_plugins_path, 'mon.d', basename)
-              else
-                abort("Unknown plugin type: #{basename}")
-              end
+          # ## use repository
+          # set(:mon_plugins) {{
+          #   application => { :scm => scm, :repository => repository, :revision => revision, :plugins => "config/plugins" },
+          # }}
+          #
+          _cset(:mon_plugins_repository_cache) { File.expand_path('./tmp/capistrano-mon') }
+          def fetch_plugins_from_repository(destination, name, options={})
+            run_locally("mkdir -p #{destination.dump}")
+            configuration = Capistrano::Configuration.new()
+            options = {
+              :source => lambda { Capistrano::Deploy::SCM.new(configuration[:scm], configuration) },
+              :revision => lambda { configuration[:source].head },
+              :real_revision => lambda {
+                configuration[:source].local.query_revision(configuration[:revision]) { |cmd| with_env("LC_ALL", "C") { run_locally(cmd) } }
+              },
+            }.merge(options)
+            variables.merge(options).each do |key, val|
+              configuration.set(key, val)
+            end
+            repository_cache = File.join(mon_plugins_repository_cache, name)
+            if File.exist?(repository_cache)
+              run_locally(configuration[:source].sync(configuration[:real_revision], repository_cache))
+            else
+              run_locally(configuration[:source].checkout(configuration[:real_revision], repository_cache))
+            end
+
+            plugins = [ options.fetch(:plugins, '/') ].flatten.compact
+            execute = plugins.map { |c|
+              repository_cache_subdir = File.join(repository_cache, c)
+              exclusions = options.fetch(:plugins_exclude, []).map { |e| "--exclude=\"#{e}\"" }.join(' ')
+              "rsync -lrpt #{exclusions} #{repository_cache_subdir}/ #{destination}"
             }
+            run_locally(execute.join(' && '))
+          end
+
+          def fetch_plugins_from_wget(destination, options={})
+            basename = File.basename(options[:basename] || URI.parse(s).path)
+            s = options[:uri]
+            case basename
+            when /\.monitor$/
+              d = File.join(destination, "mon.d", basename)
+            else
+              d = File.join(destination, "%s.d" % [basename[/\.(\w+)$/, 1]], basename)
+            end
+            execute = []
+            execute << "mkdir -p #{File.dirname(d).dump}"
+            execute << "wget --no-verbose -O #{d.dump} #{s.dump}"
+            execute << "chmod a+rx #{d.dump}"
+            run_locally(execute.join(' && '))
+          end
+
+          def bundle_plugins(filename, destination)
+            run_locally("cd #{File.dirname(destination)} && tar chzf #{filename} #{File.basename(destination)}")
+          end
+
+          def distribute_plugins(filename, remote_filename, remote_destination)
+            upload(filename, remote_filename)
+#           run("rm -rf #{remote_destination}")
+            run("cd #{File.dirname(remote_destination)} && #{sudo} tar xzf #{remote_filename}")
+          end
+
+          task(:update_plugins, :roles => :app, :except => { :no_release => true }) {
+            tmpdir = Dir.mktmpdir()
+            remote_tmpdir = capture("mktemp -d").chomp
+            destination = File.join(tmpdir, "mon")
+            remote_destination = mon_plugins_path
+            filename = File.join(tmpdir, "mon.tar.gz")
+            remote_filename = File.join(remote_tmpdir, "plugins.tar.gz")
             begin
-              execute = []
-              dirs = dsts.map { |path| File.dirname(path) }.uniq
-              execute << "#{sudo} mkdir -p #{dirs.join(' ')}" unless dirs.empty?
-              srcs.zip(tmps, dsts) do |src, tmp, dst|
-                execute << "wget --no-verbose -O #{tmp.dump} #{src.dump}"
-                execute << "( diff -u #{dst.dump} #{tmp.dump} || #{sudo} mv -f #{tmp.dump} #{dst.dump} )"
-                execute << "( test -x #{dst.dump} || #{sudo} chmod a+rx #{dst.dump} )"
+              mon_plugins.each do |name, options|
+                if options.nil?
+                  fetch_plugins_from_wget(destination, :uri => name)
+                elsif options.is_a?(String)
+                  fetch_plugins_from_wget(destination, :uri => name, :basename => options)
+                else
+                  fetch_plugins_from_repository(destination, name, options)
+                end
               end
-              run(execute.join(' && ')) unless execute.empty?
+              bundle_plugins(filename, destination)
+              run("mkdir -p #{remote_tmpdir}")
+              distribute_plugins(filename, remote_filename, remote_destination)
             ensure
-              run("rm -f #{tmps.map { |t| t.dump }.join(' ')}") unless tmps.empty?
+              run("rm -rf #{remote_tmpdir}") rescue nil
+              run_locally("rm -rf #{tmpdir}") rescue nil
             end
           }
 
