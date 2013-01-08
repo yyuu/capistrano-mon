@@ -1,4 +1,6 @@
 require "capistrano-mon/version"
+require "capistrano/configuration"
+require "capistrano/recipes/deploy/scm"
 require "erb"
 require "tempfile"
 require "tmpdir"
