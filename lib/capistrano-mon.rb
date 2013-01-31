@@ -1,6 +1,5 @@
 require "capistrano-mon/version"
 require "erb"
-require "tempfile"
 require "uri"
 
 module Capistrano
@@ -112,13 +111,6 @@ module Capistrano
             update_plugins
           }
 
-          def tempfile(name)
-            f = Tempfile.new(name)
-            path = f.path
-            f.close(true) # close and remove tempfile immediately
-            path
-          end
-
           _cset(:mon_plugins_path, "/usr/local/lib/mon")
           _cset(:mon_plugins, [])
           #
@@ -137,7 +129,7 @@ module Capistrano
           #
           task(:update_plugins, :roles => :app, :except => { :no_release => true }) {
             srcs = mon_plugins.map { |uri, name| uri }
-            tmps = mon_plugins.map { |uri, name| tempfile('capistrano-mon') }
+            tmps = mon_plugins.map { |uri, name| capture("mktemp").chomp }
             dsts = mon_plugins.map { |uri, name|
               basename = File.basename(name || URI.parse(uri).path)
               case basename
@@ -182,7 +174,7 @@ module Capistrano
           _cset(:mon_configure_files, %w(/etc/default/mon mon.cf))
           task(:configure, :roles => :app, :except => { :no_release => true }) {
             srcs = mon_configure_files.map { |file| File.join(mon_template_path, file) }
-            tmps = mon_configure_files.map { |file| tempfile('capistrano-mon') }
+            tmps = mon_configure_files.map { |file| capture("mktemp").chomp }
             dsts = mon_configure_files.map { |file| File.expand_path(file) == file ? file : File.join(mon_path, file) }
             begin
               srcs.zip(tmps) do |src, tmp|
