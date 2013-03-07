@@ -2,6 +2,7 @@ require "capistrano-mon/version"
 require "capistrano/configuration/actions/file_transfer_ext"
 require "capistrano/configuration/resources/file_resources"
 require "erb"
+require "find"
 require "uri"
 
 module Capistrano
@@ -130,9 +131,9 @@ module Capistrano
           #   application => {:repository => repository, :plugins => "config/plugins" },
           # }}
           #
-          _cset(:mon_plugins_repository_cache) { File.expand_path("./tmp/mon-plugins-cache") }
+          _cset(:mon_plugins_repository_cache) { File.expand_path("./tmp/mon-cache") }
           task(:update_plugins, :roles => :app, :except => { :no_release => true }) {
-            defs = mon_plugins.map { |key, val|
+            plugins = mon_plugins.map { |key, val|
               if /^(ftp|http)s?:\/\// =~ key
                 [ File.basename(val || URI.parse(key).path), {:uri => key, :wget => true} ]
               else
@@ -140,19 +141,11 @@ module Capistrano
               end
             }
             tmpdir = run_locally("mktemp -d /tmp/capistrano-mon.XXXXXXXXXX").chomp
-            remote_tmpdir = capture("mktemp -d /tmp/capistrano-mon.XXXXXXXXXX").chomp
-            destination = File.join(tmpdir, "mon")
-            remote_destination = mon_plugins_path
-            filename = File.join(tmpdir, "mon.tar.gz")
-            remote_filename = File.join(remote_tmpdir, "mon.tar.gz")
             begin
-              fetch_plugins(destination, defs)
-              bundle_plugins(filename, destination)
-              run("mkdir -p #{remote_tmpdir}")
-              distribute_plugins(filename, remote_filename, remote_destination)
+              fetch_plugins(tmpdir, plugins)
+              distribute_plugins(tmpdir, mon_plugins_path)
             ensure
-              run("rm -rf #{remote_tmpdir.dump}") rescue nil
-              run_locally("rm -rf #{tmpdir.dump}") rescue nil
+#             run_locally("rm -rf #{tmpdir.dump}") rescue nil
             end
           }
 
@@ -204,22 +197,22 @@ module Capistrano
             run_locally(execute.join(" && "))
           end
 
-          def bundle_plugins(filename, destination, options={})
-            run_locally("cd #{File.dirname(destination).dump} && tar chzf #{filename.dump} #{File.basename(destination)}")
-          end
-
-          def distribute_plugins(filename, remote_filename, remote_destination, options={})
-            upload(filename, remote_filename)
-            run("#{sudo} rm -rf #{remote_destination.dump}")
-            run("cd #{File.dirname(remote_destination).dump} && #{sudo} tar xzf #{remote_filename.dump}")
+          def distribute_plugins(destination, remote_destination)
+            Find.find(destination) do |plugin_file|
+              if File.file?(plugin_file)
+                safe_upload(plugin_file, mon_plugin_path(plugin_file, :path => remote_destination),
+                            :install => :if_modified, :mode => "a+x", :sudo => true)
+              end
+            end
           end
 
           def mon_plugin_path(name, options={})
             path = options.fetch(:path, ".")
-            case name
-            when /\.alert$/   then File.join(path, "alert.d", name)
-            when /\.monitor$/ then File.join(path, "mon.d", name)
-            when /\.state$/   then File.join(path, "state.d", name)
+            basename = File.basename(name)
+            case basename
+            when /\.alert$/   then File.join(path, "alert.d", basename)
+            when /\.monitor$/ then File.join(path, "mon.d", basename)
+            when /\.state$/   then File.join(path, "state.d", basename)
             else
               abort("Unknown plugin type: #{name}")
             end
